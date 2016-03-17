@@ -46,9 +46,10 @@ long mt_last=0;
 bool bFlip=false;
 double freq=0;
 long frecount=0;
-double fResA=0;
-double fResB=0;
 const double cut=-0.15;
+
+double redX=0,redY=0,redZ=0;
+int redC=0;
 
 //This buffer will hold values read from the ADXL345 registers.
 char values[10];
@@ -142,49 +143,27 @@ bool SerialCheck() {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // -> http://www.schwietering.com/jayduino/filtuino/index.php
-//Band pass bessel filter order=1 alpha1=0.0001 alpha2=0.001 
-//2000Hz 0.2->2
-class  FilterBeBp1
-{
-  public:
-    FilterBeBp1() {reset();}
-  private:
-    double v[3];
-  public:
-    void reset() {v[0]=0.0;v[1]=0.0;v[2]=0.0;}
-    double step(double x) //class II 
-    {
-      v[0] = v[1];
-      v[1] = v[2];
-      v[2] = (1.220571346719886898e-3 * x)
-         + (-0.99774060763864502732 * v[0])
-         + (1.99773997669730540849 * v[1]);
-      return 
-         (v[2] - v[0]);
-    }
-};
-class  FilterBeBp2
-{
-  public:
-    FilterBeBp2() {reset();}
-  private:
-    double v[3];
-  public:
-    void reset() {v[0]=0.0;v[1]=0.0;v[2]=0.0;}
-    double step(double x) //class II 
-    {
-      v[0] = v[1];
-      v[1] = v[2];
-      v[2] = (5.295785479650015571e-4 * x)
-         + (-0.99899519533613778677 * v[0])
-         + (1.99899487966745104117 * v[1]);
-      return 
-         (v[2] - v[0]);
-    }
-};
 
-FilterBeBp1 g_xFilter;
-FilterBeBp2 g_xFilter2;
+double filter_x[3];
+double filter_y[3];
+double filter_z[3];
+
+void filter_reset(double* v) {
+  v[0]=0.0;v[1]=0.0;v[2]=0.0;
+}
+
+//Band pass bessel filter order=1 alpha1=0.01 alpha2=0.1 
+//20hz, 0.2 -> 2
+double filter_step(double* v,double x) {
+      v[0] = v[1];
+      v[1] = v[2];
+      v[2] = (2.420745665556250092e-1 * x)
+         + (-0.54975465219277031004 * v[0])
+         + (1.51842542608997210785 * v[1]);
+      return 
+         (v[2] - v[0]);
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////////
 bool bWritten=false;
@@ -208,20 +187,6 @@ void loop() {
       Serial.print(',');
       Serial.print((freq/frecount), DEC);
 
-
-      double dA;
-      long dF;
-      int x;
-      EEPROM.get(8*0, dA);
-      EEPROM.get(8*1, dF);
-      EEPROM.get(8*2, x);
-
-      Serial.print('$');
-      Serial.print(dA, DEC);
-      Serial.print('$');
-      Serial.print(dF, DEC);
-      Serial.print('$');
-      Serial.print(x, DEC);
       
       Serial.print('\n');
     }/**/
@@ -257,12 +222,46 @@ void pollData(){
   y =(int)((((unsigned int)(values[3]&255)) << 8)|(unsigned int)(values[2])&255); 
   z =(int)((((unsigned int)(values[5]&255)) << 8)|(unsigned int)(values[4])&255);
 
-  //float xg=x*4/pow(2,10);
-  //float yg=y*4/pow(2,10);
-  //float zg=z*4/pow(2,10);
+  double xg=x*4/pow(2,10);
+  double yg=y*4/pow(2,10);
+  double zg=z*4/pow(2,10);
 
-  float xg=((float)x);
-  float zg=((float)z);
+  redX+=xg;
+  redY+=yg;
+  redZ+=zg;
+  redC++;
+  if(redC<200) return;
+
+  redX/=redC;
+  redY/=redC;
+  redZ/=redC;
+
+  double resX=filter_step(filter_x,redX);//if(isnan(resX)||isinf(resX)) filter_reset(filter_x);
+  double resY=filter_step(filter_y,redY);//if(isnan(resY)||isinf(resY)) filter_reset(filter_y);
+  double resZ=filter_step(filter_z,redZ);//if(isnan(resZ)||isinf(resZ)) filter_reset(filter_z);
+
+  redX=0;redY=0;redZ=0;redC=0;
+
+  float len=sqrt(resX*resX+resZ*resZ);
+  float a=atan2(resX/len,resZ/len);
+  a*=len;
+
+  digitalWrite(LED1, (len>0.1f&&a<-0.15)?HIGH:LOW);
+  digitalWrite(LED2, (len>0.2f&&a<-0.2)?HIGH:LOW);
+  //digitalWrite(LED1, (len>0.1f)?HIGH:LOW);
+  //digitalWrite(LED2, (a<-0.15)?HIGH:LOW);
+
+  if(Serial&&Serial.availableForWrite()==63) {
+    Serial.print(a*10, DEC);
+    Serial.print(',');
+    Serial.print(len*10, DEC);
+    Serial.print('\n');
+  };
+
+  return;
+/*
+  //float xg=((float)x);
+  //float zg=((float)z);
   float len=sqrt(xg*xg+zg*zg);
   xg/=len;zg/=len;
   float a=atan2(xg,zg);
@@ -291,7 +290,7 @@ void pollData(){
     
   }
 
-  
+  */
   //delay(10); 
 }
 
