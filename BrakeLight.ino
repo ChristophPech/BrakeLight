@@ -56,6 +56,8 @@ char values[10];
 //These variables will be used to hold the x,y and z axis accelerometer values.
 int x,y,z;
 
+#define DBG 0
+
 void setup(){ 
   //Initiate an SPI communication instance.
   SPI.begin();
@@ -85,8 +87,10 @@ void setup(){
   Timer1.initialize(500);
   Timer1.attachInterrupt(pollData); // pollData run @ 2kHz
 
+#if DBG
   //Create a serial connection to display the data on the terminal.
   Serial.begin(9600);
+#endif
 }
 
 
@@ -242,22 +246,33 @@ void pollData(){
 
   redX=0;redY=0;redZ=0;redC=0;
 
-  float len=sqrt(resX*resX+resZ*resZ);
-  float a=atan2(resX/len,resZ/len);
+  float len=sqrt(resX*resX+resY*resY);
+  float a=atan2(resX/len,resY/len);
   a*=len;
 
-  digitalWrite(LED1, (len>0.1f&&a<-0.15)?HIGH:LOW);
-  digitalWrite(LED2, (len>0.2f&&a<-0.2)?HIGH:LOW);
+  int on=(len>0.175f&&a<-0.175)?HIGH:LOW;
+  digitalWrite(LED2, on);
+  //digitalWrite(LED2, (len>0.2f&&a<-0.2)?HIGH:LOW);
   //digitalWrite(LED1, (len>0.1f)?HIGH:LOW);
   //digitalWrite(LED2, (a<-0.15)?HIGH:LOW);
 
+#if DBG
   if(Serial&&Serial.availableForWrite()==63) {
-    Serial.print(a*10, DEC);
+    Serial.print(xg, DEC);
     Serial.print(',');
-    Serial.print(len*10, DEC);
+    Serial.print(yg, DEC);
+    Serial.print(',');
+    Serial.print(zg, DEC);
+
+    Serial.print(',');
+    Serial.print(on, DEC);
+//Serial.print(',');
+    //Serial.print(a*10, DEC);
+    //Serial.print(',');
+    //Serial.print(len*10, DEC);
     Serial.print('\n');
   };
-
+#endif
   return;
 /*
   //float xg=((float)x);
