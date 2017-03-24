@@ -3,8 +3,8 @@
 #include <EEPROM.h>
 #include "TimerOne.h"
 
-int LED1=2;
-int LED2=3;
+int LED1=5;
+int LED2=7;
 int inPin=8;
 
 //Assign the Chip Select signal to pin 10.
@@ -42,7 +42,7 @@ char DATAZ0 = 0x36; //Z-Axis Data 0
 char DATAZ1 = 0x37; //Z-Axis Data 1
 
 int printcnt=0;
-long mt_last=0;
+long on_last=0;
 bool bFlip=false;
 double freq=0;
 long frecount=0;
@@ -50,6 +50,7 @@ const double cut=-0.15;
 
 double redX=0,redY=0,redZ=0;
 int redC=0;
+unsigned int blink_cnt=0;
 
 //This buffer will hold values read from the ADXL345 registers.
 char values[10];
@@ -72,6 +73,7 @@ void setup(){
   pinMode(LED1, OUTPUT);
   pinMode(LED2, OUTPUT);
   pinMode(inPin, INPUT);
+
 
   writeRegister(BW_RATE, BR_3200); //highest sampling rate
   //rough calibration
@@ -246,12 +248,30 @@ void pollData(){
 
   redX=0;redY=0;redZ=0;redC=0;
 
-  float len=sqrt(resX*resX+resY*resY);
-  float a=atan2(resX/len,resY/len);
+  float len=sqrt(resX*resX+resZ*resZ);
+  float a=atan2(resX/len,resZ/len);
   a*=len;
 
   int on=(len>0.175f&&a<-0.175)?HIGH:LOW;
-  digitalWrite(LED2, on);
+
+  long t=millis();
+  if(on) on_last=t;
+  long d=t-on_last;
+  if(d<500) on=true;
+
+  analogWrite(LED1,on?255:50);
+
+  blink_cnt++;
+  if(on) {
+    digitalWrite(LED2, (blink_cnt<2)?HIGH:LOW);
+    if (blink_cnt>2) blink_cnt=0;
+  } else {
+    digitalWrite(LED2, (blink_cnt<4)?HIGH:LOW);
+    if (blink_cnt>8) blink_cnt=0;
+  }
+  //digitalWrite(LED2, (blink_cnt%2)==1);
+  
+  //digitalWrite(LED2, on);
   //digitalWrite(LED2, (len>0.2f&&a<-0.2)?HIGH:LOW);
   //digitalWrite(LED1, (len>0.1f)?HIGH:LOW);
   //digitalWrite(LED2, (a<-0.15)?HIGH:LOW);
