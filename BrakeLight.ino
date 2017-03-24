@@ -91,7 +91,7 @@ void setup(){
 
 #if DBG
   //Create a serial connection to display the data on the terminal.
-  Serial.begin(9600);
+  Serial.begin(115200);
 #endif
 }
 
@@ -248,8 +248,8 @@ void pollData(){
 
   redX=0;redY=0;redZ=0;redC=0;
 
-  float len=sqrt(resX*resX+resZ*resZ);
-  float a=atan2(resX/len,resZ/len);
+  float len=sqrt(resY*resY+resZ*resZ);
+  float a=atan2(resY/len,resZ/len);
   a*=len;
 
   int on=(len>0.175f&&a<-0.175)?HIGH:LOW;
