@@ -247,9 +247,11 @@ void pollData(){
   double resZ=filter_step(filter_z,redZ);//if(isnan(resZ)||isinf(resZ)) filter_reset(filter_z);
 
   redX=0;redY=0;redZ=0;redC=0;
+  const float resA=resY;
+  const float resB=-resZ;
 
-  float len=sqrt(resY*resY+resZ*resZ);
-  float a=atan2(resY/len,resZ/len);
+  float len=sqrt(resA*resA+resB*resB);
+  float a=atan2(resA/len,resB/len);
   a*=len;
 
   int on=(len>0.175f&&a<-0.175)?HIGH:LOW;
@@ -278,18 +280,18 @@ void pollData(){
 
 #if DBG
   if(Serial&&Serial.availableForWrite()==63) {
-    Serial.print(xg, DEC);
+    Serial.print(resA, DEC);
     Serial.print(',');
-    Serial.print(yg, DEC);
-    Serial.print(',');
-    Serial.print(zg, DEC);
+    Serial.print(resB, DEC);
+    //Serial.print(',');
+    //Serial.print(zg, DEC);
 
     Serial.print(',');
     Serial.print(on, DEC);
-//Serial.print(',');
-    //Serial.print(a*10, DEC);
-    //Serial.print(',');
-    //Serial.print(len*10, DEC);
+    Serial.print(',');
+    Serial.print(a, DEC);
+    Serial.print(',');
+    Serial.print(len, DEC);
     Serial.print('\n');
   };
 #endif
