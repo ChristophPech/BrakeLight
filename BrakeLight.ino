@@ -3,43 +3,46 @@
 #include <EEPROM.h>
 #include "TimerOne.h"
 
-int LED1=5;
-int LED2=7;
-int inPin=8;
+const int LIGHT_PWM_PIN=5;  //PWM pin for mosfet gate
+const char PWM_DUTY_NORMAL=50; //normal back light (50=20%)
+const char PWM_DUTY_BRAKING=255; //brake light duty (255=100%)
+const int MIN_BRAKE_ON_DURATION=500; //(milliseconds) keep brake light on for at least
 
-//Assign the Chip Select signal to pin 10.
-int CS=10;
+const int STATUS_LED_PIN=7; //optional blinking led to signal function without main light
+
+
+const int CS=10; //SPI Chip Select: pin 10.
 
 //This is a list of some of the registers available on the ADXL345.
 //To learn more about these and the rest of the registers on the ADXL345, read the datasheet!
-char POWER_CTL = 0x2D;  //Power Control Register
+const char POWER_CTL = 0x2D;  //Power Control Register
 
-char DATA_FORMAT = 0x31;
-char DF_SELFTEST = 0x80;
-char DF_FULLRES = 0x8;
-char DF_2G=0x00;
-char DF_4G=0x01;
-char DF_8G=0x02;
-char DF_16G=0x03;
+const char DATA_FORMAT = 0x31;
+const char DF_SELFTEST = 0x80;
+const char DF_FULLRES = 0x8;
+const char DF_2G=0x00;
+const char DF_4G=0x01;
+const char DF_8G=0x02;
+const char DF_16G=0x03;
 
-char BW_RATE=0x2C;
-char BR_3200=0x0F;
-char BR_1600=0x0E;
-char BR_0800=0x0D;
-char BR_0400=0x0C;
-char BR_0200=0x0B;
-char BR_0100=0x0A;
+const char BW_RATE=0x2C;
+const char BR_3200=0x0F;
+const char BR_1600=0x0E;
+const char BR_0800=0x0D;
+const char BR_0400=0x0C;
+const char BR_0200=0x0B;
+const char BR_0100=0x0A;
 
-char OFSX=0x1E; //calibration
-char OFSY=0x1F;
-char OFSZ=0x20;
+const char OFSX=0x1E; //calibration
+const char OFSY=0x1F;
+const char OFSZ=0x20;
 
-char DATAX0 = 0x32; //X-Axis Data 0
-char DATAX1 = 0x33; //X-Axis Data 1
-char DATAY0 = 0x34; //Y-Axis Data 0
-char DATAY1 = 0x35; //Y-Axis Data 1
-char DATAZ0 = 0x36; //Z-Axis Data 0
-char DATAZ1 = 0x37; //Z-Axis Data 1
+const char DATAX0 = 0x32; //X-Axis Data 0
+const char DATAX1 = 0x33; //X-Axis Data 1
+const char DATAY0 = 0x34; //Y-Axis Data 0
+const char DATAY1 = 0x35; //Y-Axis Data 1
+const char DATAZ0 = 0x36; //Z-Axis Data 0
+const char DATAZ1 = 0x37; //Z-Axis Data 1
 
 int printcnt=0;
 long on_last=0;
@@ -70,9 +73,8 @@ void setup(){
   //Before communication starts, the Chip Select pin needs to be set high.
   digitalWrite(CS, HIGH);
 
-  pinMode(LED1, OUTPUT);
-  pinMode(LED2, OUTPUT);
-  pinMode(inPin, INPUT);
+  pinMode(LIGHT_PWM_PIN, OUTPUT);
+  pinMode(STATUS_LED_PIN, OUTPUT);
 
 
   writeRegister(BW_RATE, BR_3200); //highest sampling rate
@@ -134,19 +136,6 @@ void readRegister(char registerAddress, int numBytes, char * values){
   digitalWrite(CS, HIGH);
 }
 
-/*long serOkCnt=0;
-bool SerialCheck() {
-  if(!Serial) return false;
-  int av=Serial.availableForWrite();
-  if(av>=32) {serOkCnt=0;return true;}
-  while(serOkCnt<4) {
-    delay(1);
-    av=Serial.availableForWrite();
-    if(av>=32) {serOkCnt=0;return true;}
-  }
-  return false;
-}*/
-
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // -> http://www.schwietering.com/jayduino/filtuino/index.php
 
@@ -172,43 +161,7 @@ double filter_step(double* v,double x) {
 
 
 ////////////////////////////////////////////////////////////////////////////////////
-bool bWritten=false;
 void loop() {
-  /*
-  if(Serial&&Serial.availableForWrite()==63&&frecount>0) {
-      Serial.print((fResA*100), DEC);
-
-      Serial.print(',');
-      Serial.print((fResB*200), DEC);
-
-      Serial.print(',');
-      Serial.print((int)(cut*200), DEC);
-
-      Serial.print(',');
-      Serial.print((freq), DEC);
-      Serial.print(',');
-      Serial.print((frecount), DEC);
-
-      
-      Serial.print(',');
-      Serial.print((freq/frecount), DEC);
-
-      
-      Serial.print('\n');
-    }/**/
-
-
-    /*
-    int val = digitalRead(inPin);
-    if(val&&!bWritten) {
-      bWritten=true;
-
-      EEPROM.put(8*0, fResA);
-      EEPROM.put(8*1, frecount);
-      EEPROM.put(8*2, x);
-    }
-    digitalWrite(LED2, bWritten?HIGH:LOW);
-    /**/
 }
 
 void pollData(){
@@ -259,24 +212,18 @@ void pollData(){
   long t=millis();
   if(on) on_last=t;
   long d=t-on_last;
-  if(d<500) on=true;
+  if(d<MIN_BRAKE_ON_DURATION) on=true;
 
-  analogWrite(LED1,on?255:50);
+  analogWrite(LIGHT_PWM_PIN,on?PWM_DUTY_BRAKING:PWM_DUTY_NORMAL);
 
   blink_cnt++;
   if(on) {
-    digitalWrite(LED2, (blink_cnt<2)?HIGH:LOW);
+    digitalWrite(STATUS_LED_PIN, (blink_cnt<2)?HIGH:LOW);
     if (blink_cnt>2) blink_cnt=0;
   } else {
-    digitalWrite(LED2, (blink_cnt<4)?HIGH:LOW);
+    digitalWrite(STATUS_LED_PIN, (blink_cnt<4)?HIGH:LOW);
     if (blink_cnt>8) blink_cnt=0;
   }
-  //digitalWrite(LED2, (blink_cnt%2)==1);
-  
-  //digitalWrite(LED2, on);
-  //digitalWrite(LED2, (len>0.2f&&a<-0.2)?HIGH:LOW);
-  //digitalWrite(LED1, (len>0.1f)?HIGH:LOW);
-  //digitalWrite(LED2, (a<-0.15)?HIGH:LOW);
 
 #if DBG
   if(Serial&&Serial.availableForWrite()==63) {
@@ -296,39 +243,7 @@ void pollData(){
   };
 #endif
   return;
-/*
-  //float xg=((float)x);
-  //float zg=((float)z);
-  float len=sqrt(xg*xg+zg*zg);
-  xg/=len;zg/=len;
-  float a=atan2(xg,zg);
 
-  fResA=g_xFilter.step(a);
-  fResB=g_xFilter2.step(a);
-  if(isnan(fResA)||isinf(fResA)) g_xFilter.reset();
-  if(isnan(fResB)||isinf(fResB)) g_xFilter2.reset();
-
-  const int PMAX=200;
-  printcnt++;
-  if(printcnt>PMAX) {
-    printcnt=0;
-
-   long t=millis();
-   long d=t-mt_last;mt_last=t;
-   float fFrq=((float)PMAX)/d;
-   freq+=fFrq;
-   frecount++;
-
-    digitalWrite(LED1, fResA<cut?HIGH:LOW);
-    digitalWrite(LED2, fResB<cut?HIGH:LOW);
-    //digitalWrite(LED2, x<0?HIGH:LOW);
-    //digitalWrite(LED2, (frecount%2)==0?HIGH:LOW);
-    //digitalWrite(LED2, bFlip?HIGH:LOW);bFlip=!bFlip;
-    
-  }
-
-  */
-  //delay(10); 
 }
 
 
