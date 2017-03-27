@@ -4,8 +4,8 @@
 #include "TimerOne.h"
 
 const int LIGHT_PWM_PIN=5;  //PWM pin for mosfet gate
-const char PWM_DUTY_NORMAL=50; //normal back light (50=20%)
-const char PWM_DUTY_BRAKING=255; //brake light duty (255=100%)
+const int PWM_DUTY_NORMAL=50; //normal back light (50=20%)
+const int PWM_DUTY_BRAKING=255; //brake light duty (255=100%)
 const int MIN_BRAKE_ON_DURATION=500; //(milliseconds) keep brake light on for at least
 
 const int STATUS_LED_PIN=7; //optional blinking led to signal function without main light
